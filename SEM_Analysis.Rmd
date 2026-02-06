@@ -1,0 +1,69 @@
+---
+title: "SEM_Modelling"
+output: html_document
+date: "2024-10-02"
+creator: "Amin Khairoun"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "/media/amin/DISK6T/PhD/Landsat_BA/Siberia/PeatFire/BG_CC/data")
+```
+
+
+```{r}
+library(dplyr)
+# Load the sem package
+# library(sem)
+library(OpenMx)
+library(semPlot)
+library(lavaan)
+library(piecewiseSEM)
+library(lme4)
+library(dplyr)
+library(nlme)
+
+```
+
+```{r}
+data <- read.csv("Data_Path_Analysis.csv") %>% subset(Zone != 'All') 
+# cols <- colnames(data)[4:length(colnames(data))]
+data$PeatFire <- log(data$PeatFire)
+data$BA <- log(data$BA)
+data$Zone <- factor(data$Zone)
+
+# data[cols] <- as.data.frame(lapply(data[cols], function(x) (x - min(x)) / (max(x) - min(x)) + 1e-6) )
+# data[cols] <- scale(data[cols]) ## not needed the std estimate does that 
+
+model_psem <- psem(
+
+  lm(PDSI ~ CWD + Tmin,
+  data = data),
+  
+  lm(DC ~ CWD + Tmin,
+  data = data),
+
+  # lm(CWD_Anomaly ~ CWD,
+  # data = data),
+  
+  lme(PeatFire ~ DC + PDSI, random = ~ 1 | Zone,
+  data = data, method = 'ML'),
+  # 
+  lme(BGCC ~ PeatFire + CWD + Tmin + CWD*Tmin, random = ~ 1 | Zone,
+  data = data, method = 'ML'),
+
+  lme(BA ~ DC + PDSI, random = ~ 1 | Zone,
+  data = data, method = 'ML')#,
+
+  # lme(PeatFraction ~ CWD + PeatFire, random = ~ 1 | Zone,
+  # data = data, method = 'ML')
+
+  )
+
+# model_psem <- update(model_psem, exp(PeatFire) %~~% PeatFraction)
+model_psem <- update(model_psem, BA %~~% PeatFire)
+# model_psem <- update(model_psem, Tmin %~~% CWD)
+summary(model_psem, standardized = TRUE)
+```
+
+
